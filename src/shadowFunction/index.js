@@ -87,6 +87,7 @@ class ShadowFunction {
     let propNames = Object.getOwnPropertyNames(object)
     let safeSetter = this.safeSetter.bind(this)
     let safeGetter = this.safeGetter.bind(this)
+    let Proxy = safeEval('(Proxy)')
     return new Proxy(safeEval(`({${propNames.length ? propNames.join(':{},') + ':{}' : ''}})`), {
       get (target, name) {
         return safeGetter(object, name)
@@ -95,6 +96,51 @@ class ShadowFunction {
         return safeSetter(origin, name, value)
       }
     })
+  }
+
+  checkIsSmuggled(object) {
+    let propNames = Object.getOwnPropertyNames(object)
+    let isSmuggled = false
+    for (let name of propNames) {
+      let value = object[name]
+      let valueType = typeof(value)
+
+      if (value) {
+        switch (valueType) {
+          case 'object':
+            if (this.checkIsSmuggled(value)) {
+              isSmuggled = true
+            }
+            break
+          case 'string':
+          case 'number':
+          case 'boolean':
+            break
+          case 'function':
+            if (value.toString.constructor !== this.shadowToString.constructor) {
+              isSmuggled = true
+            }
+            break
+          default:
+            isSmuggled = true
+            break
+        }
+      }
+    }
+
+    return isSmuggled
+  }
+
+  proxyObject(target, name, value) {
+    if (getObjectType(value) !== 'Object' && value.toString.constructor === this.shadowToString.constructor) {
+      if (!this.checkIsSmuggled(value)) {
+        target[name] = value
+      } else {
+        throw 'Uncaught SyntaxError: Do not enclose custom functions in Element'
+      }
+    } else {
+      target[name] = this.proxyEach(value)
+    }
   }
 
   proxyEach(object) {
@@ -115,19 +161,18 @@ class ShadowFunction {
       if (value) {
         switch (valueType) {
           case 'object':
-            if (value.toString.constructor === this.shadowToString.constructor) {
-              target[name] = value
-            } else {
-              target[name] = this.proxyEach(value)
-            }
+            this.proxyObject(target, name, value)
             break
           case 'function':
             target[name] = value.bind(object)
             break
           case 'string':
           case 'number':
-          case 'bollean':
+          case 'boolean':
             target[name] = value
+            break
+          default:
+            target[name] = '[unknow type]'
             break
         }
       }
@@ -138,8 +183,6 @@ class ShadowFunction {
 
   safeSetter (object, name, value) {
     let valueType = typeof(value)
-    let proxyEach = this.proxyEach.bind(this)
-    let ShadowFunction = this.ShadowFunction
     let prototype = getObjectType(object)
     let propNames = Object.getOwnPropertyNames(object)
     let whitelist = this.allowProtoProperties[prototype]
@@ -161,14 +204,11 @@ class ShadowFunction {
     switch (valueType) {
       case 'string':
       case 'number':
-      case 'bollean':
+      case 'boolean':
         object[name] = value
         break
       case 'function':
-        object[name] = new ShadowFunction('value', 'object', 'proxy', `
-          return function () {
-            return proxy(value.apply(object, arguments))
-          }`)(value, object, proxyEach)
+        object[name] = this.safeReturnFunction(value, object)
         break
       default:
         this.tracker({
@@ -186,8 +226,6 @@ class ShadowFunction {
   safeGetter (object, name) {
     let value = object[name]
     let valueType = typeof(value)
-    let proxyEach = this.proxyEach.bind(this)
-    let ShadowFunction = this.ShadowFunction
     let prototype = getObjectType(object)
     let propNames = Object.getOwnPropertyNames(object)
     let whitelist = this.allowProtoProperties[prototype]
@@ -205,24 +243,31 @@ class ShadowFunction {
       return
     }
 
-    // nor type
     switch (valueType) {
       case 'string':
       case 'number':
       case 'object':
-      case 'bollean':
+      case 'boolean':
         return value
       case 'function':
-        return new ShadowFunction('value', 'object', 'proxy', `
-          return function () {
-            return proxy(value.apply(object, arguments))
-          }`)(value, object, proxyEach)
-
+        return this.safeReturnFunction(value, object)
+      default:
+        return
     }
   }
 
+  safeReturnFunction(value, object) {
+    return new this.ShadowFunction('value', 'object', 'safeReturnFunction', 'proxy', `
+      return (function () {
+        return function () {
+          return proxy(value.apply(object, proxy(arguments)));
+        };
+      })();
+    `)(value, object, this.safeReturnFunction, this.proxyEach.bind(this))
+  }
+
   runShadow(scriptStr) {
-    this.shadowFunction = new this.ShadowFunction('(function(apply){with(apply) {' + scriptStr + '}})(this)')
+    this.shadowFunction = new this.ShadowFunction('(function(){with(arguments[0]) {' + scriptStr + '}})(this)')
     return this.runScript.bind(this)
   }
 

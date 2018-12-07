@@ -60,15 +60,14 @@ class ShadowDocument {
 
     this.shadowFunction = new ShadowFunction({})
     this.shadowFunction = this.shadowFunction(this.reject(this.template))({
-      __$template__: this.template,
-      __$parallel__: this.parallel.bind(this)
+      __$template__: this.template
     })
+    this.sandbox = this.shadowFunction.sandbox
+    this.parallel.bind(this)(this.sandbox.document)
   }
 
   reject(template) {
     let reject = `
-      __$parallel__(document.body);
-      __$parallel__ = null;
       (function () {
         var __$getEventTarget__ = function (object) {
           if (!object) return
@@ -225,11 +224,7 @@ class ShadowDocument {
           this.shadowFunction.run(`
             for (let i = 0; i < event.length; i++) {
               let even = event[i]
-              try {
-                typeof(even) === 'function' && even.call(node, e)
-              } catch (e) {
-                console.log(e, 99)
-              }
+              typeof(even) === 'function' && even.call(node, e)
             }
           `)({event: node[name], node, e: this.shadowEvent(e)})
         }, false)
@@ -258,7 +253,7 @@ class ShadowDocument {
       switch (typeof(e[k]) ) {
         case 'string':
         case 'number':
-        case 'bollean':
+        case 'boolean':
           event[k] = e[k]
           break
       }
@@ -267,9 +262,8 @@ class ShadowDocument {
   }
 
   parallel(root) {
-    this.shadowFunction('observer()')({observer: () => {
+    this.shadowFunction.run('observer()')({observer: () => {
       new MutationObserver((records) => {
-        console.log(records, 8889)
         for (let record of records) {
           let target = record.target
           switch (record.type) {

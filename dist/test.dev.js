@@ -118,12 +118,31 @@ window.ShadowDocument = _src_shadowDocument_index__WEBPACK_IMPORTED_MODULE_1__["
 window.ShadowPreact = _src_shadowPreact_index__WEBPACK_IMPORTED_MODULE_2__["ShadowPreact"];
 
 // csp("script-src 'self'; object-src 'none'; style-src cdn.example.org third-party.org; child-src https:; report-uri https://www.alibaba-inc.com/xss")
+// // 移除无效
+// let meta = document.getElementsByTagName('meta')
+// meta = meta[meta.length -1]
+// meta.parentElement.removeChild(meta)
+
 
 Object(_src_jsonp_index__WEBPACK_IMPORTED_MODULE_3__["jsonp"])({
   url: "http://suggest.taobao.com/sug?code=utf-8&q=iphoneX"
 }).then(data => {
   console.log("jsonp:", data);
 });
+
+// new ShadowFunction(`
+//     fn({
+//       callback: function (k) {
+//         console.log(arguments.callee)
+//         k.valueOf.__proto__.constructor('alert(99)')()
+//       }
+//     })
+// `)({
+//   console,
+//   fn: function (cb) {
+//     cb.callback({k: 7})
+//   }
+// })
 
 /***/ }),
 
@@ -274,8 +293,8 @@ const jsonp = function (options) {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "getObjectType", function() { return getObjectType; });
 const getObjectType = object => {
-  let typeStr = '' + object;
-  let objectType = /\s*\[(\w+) (\w+)\]\s*/.exec(typeStr) || [];
+  let objectStr = Object.prototype.toString.call(object);
+  let objectType = /\s*\[(\w+) (\w+)\]\s*/.exec(objectStr) || [];
 
   switch (objectType[1]) {
     case 'object':
@@ -455,15 +474,14 @@ class ShadowDocument {
 
     this.shadowFunction = new _shadowFunction_index__WEBPACK_IMPORTED_MODULE_0__["ShadowFunction"]({});
     this.shadowFunction = this.shadowFunction(this.reject(this.template))({
-      __$template__: this.template,
-      __$parallel__: this.parallel.bind(this)
+      __$template__: this.template
     });
+    this.sandbox = this.shadowFunction.sandbox;
+    this.parallel.bind(this)(this.sandbox.document);
   }
 
   reject(template) {
     let reject = `
-      __$parallel__(document.body);
-      __$parallel__ = null;
       (function () {
         var __$getEventTarget__ = function (object) {
           if (!object) return
@@ -620,11 +638,7 @@ class ShadowDocument {
           this.shadowFunction.run(`
             for (let i = 0; i < event.length; i++) {
               let even = event[i]
-              try {
-                typeof(even) === 'function' && even.call(node, e)
-              } catch (e) {
-                console.log(e, 99)
-              }
+              typeof(even) === 'function' && even.call(node, e)
             }
           `)({ event: node[name], node, e: this.shadowEvent(e) });
         }, false);
@@ -653,7 +667,7 @@ class ShadowDocument {
       switch (typeof e[k]) {
         case 'string':
         case 'number':
-        case 'bollean':
+        case 'boolean':
           event[k] = e[k];
           break;
       }
@@ -662,9 +676,8 @@ class ShadowDocument {
   }
 
   parallel(root) {
-    this.shadowFunction('observer()')({ observer: () => {
+    this.shadowFunction.run('observer()')({ observer: () => {
         new MutationObserver(records => {
-          console.log(records, 8889);
           for (let record of records) {
             let target = record.target;
             switch (record.type) {
@@ -783,6 +796,7 @@ class ShadowFunction {
     let propNames = Object.getOwnPropertyNames(object);
     let safeSetter = this.safeSetter.bind(this);
     let safeGetter = this.safeGetter.bind(this);
+    let Proxy = Object(_safeEval_index__WEBPACK_IMPORTED_MODULE_2__["safeEval"])('(Proxy)');
     return new Proxy(Object(_safeEval_index__WEBPACK_IMPORTED_MODULE_2__["safeEval"])(`({${propNames.length ? propNames.join(':{},') + ':{}' : ''}})`), {
       get(target, name) {
         return safeGetter(object, name);
@@ -791,6 +805,51 @@ class ShadowFunction {
         return safeSetter(origin, name, value);
       }
     });
+  }
+
+  checkIsSmuggled(object) {
+    let propNames = Object.getOwnPropertyNames(object);
+    let isSmuggled = false;
+    for (let name of propNames) {
+      let value = object[name];
+      let valueType = typeof value;
+
+      if (value) {
+        switch (valueType) {
+          case 'object':
+            if (this.checkIsSmuggled(value)) {
+              isSmuggled = true;
+            }
+            break;
+          case 'string':
+          case 'number':
+          case 'boolean':
+            break;
+          case 'function':
+            if (value.toString.constructor !== this.shadowToString.constructor) {
+              isSmuggled = true;
+            }
+            break;
+          default:
+            isSmuggled = true;
+            break;
+        }
+      }
+    }
+
+    return isSmuggled;
+  }
+
+  proxyObject(target, name, value) {
+    if (Object(_objectType_index__WEBPACK_IMPORTED_MODULE_0__["getObjectType"])(value) !== 'Object' && value.toString.constructor === this.shadowToString.constructor) {
+      if (!this.checkIsSmuggled(value)) {
+        target[name] = value;
+      } else {
+        throw 'Uncaught SyntaxError: Do not enclose custom functions in Element';
+      }
+    } else {
+      target[name] = this.proxyEach(value);
+    }
   }
 
   proxyEach(object) {
@@ -811,19 +870,18 @@ class ShadowFunction {
       if (value) {
         switch (valueType) {
           case 'object':
-            if (value.toString.constructor === this.shadowToString.constructor) {
-              target[name] = value;
-            } else {
-              target[name] = this.proxyEach(value);
-            }
+            this.proxyObject(target, name, value);
             break;
           case 'function':
             target[name] = value.bind(object);
             break;
           case 'string':
           case 'number':
-          case 'bollean':
+          case 'boolean':
             target[name] = value;
+            break;
+          default:
+            target[name] = '[unknow type]';
             break;
         }
       }
@@ -834,8 +892,6 @@ class ShadowFunction {
 
   safeSetter(object, name, value) {
     let valueType = typeof value;
-    let proxyEach = this.proxyEach.bind(this);
-    let ShadowFunction = this.ShadowFunction;
     let prototype = Object(_objectType_index__WEBPACK_IMPORTED_MODULE_0__["getObjectType"])(object);
     let propNames = Object.getOwnPropertyNames(object);
     let whitelist = this.allowProtoProperties[prototype];
@@ -857,14 +913,11 @@ class ShadowFunction {
     switch (valueType) {
       case 'string':
       case 'number':
-      case 'bollean':
+      case 'boolean':
         object[name] = value;
         break;
       case 'function':
-        object[name] = new ShadowFunction('value', 'object', 'proxy', `
-          return function () {
-            return proxy(value.apply(object, arguments))
-          }`)(value, object, proxyEach);
+        object[name] = this.safeReturnFunction(value, object);
         break;
       default:
         this.tracker({
@@ -882,8 +935,6 @@ class ShadowFunction {
   safeGetter(object, name) {
     let value = object[name];
     let valueType = typeof value;
-    let proxyEach = this.proxyEach.bind(this);
-    let ShadowFunction = this.ShadowFunction;
     let prototype = Object(_objectType_index__WEBPACK_IMPORTED_MODULE_0__["getObjectType"])(object);
     let propNames = Object.getOwnPropertyNames(object);
     let whitelist = this.allowProtoProperties[prototype];
@@ -901,24 +952,31 @@ class ShadowFunction {
       return;
     }
 
-    // nor type
     switch (valueType) {
       case 'string':
       case 'number':
       case 'object':
-      case 'bollean':
+      case 'boolean':
         return value;
       case 'function':
-        return new ShadowFunction('value', 'object', 'proxy', `
-          return function () {
-            return proxy(value.apply(object, arguments))
-          }`)(value, object, proxyEach);
-
+        return this.safeReturnFunction(value, object);
+      default:
+        return;
     }
   }
 
+  safeReturnFunction(value, object) {
+    return new this.ShadowFunction('value', 'object', 'safeReturnFunction', 'proxy', `
+      return (function () {
+        return function () {
+          return proxy(value.apply(object, proxy(arguments)));
+        };
+      })();
+    `)(value, object, this.safeReturnFunction, this.proxyEach.bind(this));
+  }
+
   runShadow(scriptStr) {
-    this.shadowFunction = new this.ShadowFunction('(function(apply){with(apply) {' + scriptStr + '}})(this)');
+    this.shadowFunction = new this.ShadowFunction('(function(){with(arguments[0]) {' + scriptStr + '}})(this)');
     return this.runScript.bind(this);
   }
 

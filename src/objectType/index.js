@@ -1,6 +1,6 @@
 const getObjectType = (object) => {
-  let typeStr = '' + object
-  let objectType = (/\s*\[(\w+) (\w+)\]\s*/.exec(typeStr) || [])
+  let objectStr = Object.prototype.toString.call(object)
+  let objectType = (/\s*\[(\w+) (\w+)\]\s*/.exec(objectStr) || [])
 
   switch (objectType[1]) {
     case 'object':
