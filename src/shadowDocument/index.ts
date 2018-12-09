@@ -6,66 +6,71 @@ const DOCUMENT = document
 
 // ShadowDocument
 class ShadowDocument {
-  constructor (root, template, setting) {
-    this.init(root, template, setting)
-
-    return this.shadowFunction.run.bind(this)
+  private o: number = 0
+  public template!: string
+  private TREE
+  private shadowFunction
+  private allowTagName = {
+    'DIV': true,
+    'B': true,
+    'P': true,
+    'DL': true,
+    'DT': true,
+    'DD': true,
+    'EM': true,
+    'HR': true,
+    'UL': true,
+    'LI': true,
+    'OL': true,
+    'TD': true,
+    'TH': true,
+    'TR': true,
+    'TT': true,
+    'IMG': true,
+    'NAV': true,
+    'SUP': true,
+    'SUB': true,
+    'SPAN': true,
+    'FONT': true,
+    'STYLE': true,
+    'SMALL': true,
+    'LABEL': true,
+    'INPUT': true,
+    'TABLE': true,
+    'TBODY': true,
+    'THEAD': true,
+    'TFOOT': true,
+    'BUTTON': true,
+    'FOOTER': true,
+    'HEADER': true,
+    'STRONG': true
   }
 
-  init (root, template, setting) {
+  constructor (root, template, setting = {}) {
+    this.init(root, template, setting)
+
+    return this.shadowFunction.runScript.bind(this) // 喵喵喵？
+  }
+
+  private init (root, template: string, setting) {
     let shadowRoot = root.createShadowRoot ? root.createShadowRoot() : root
     this.template = template
-    this.o = 0
     this.TREE = {
       0: shadowRoot
-    }
-    this.allowTagName = {
-      'DIV': true,
-      'B': true,
-      'P': true,
-      'DL': true,
-      'DT': true,
-      'DD': true,
-      'EM': true,
-      'HR': true,
-      'UL': true,
-      'LI': true,
-      'OL': true,
-      'TD': true,
-      'TH': true,
-      'TR': true,
-      'TT': true,
-      'IMG': true,
-      'NAV': true,
-      'SUP': true,
-      'SUB': true,
-      'SPAN': true,
-      'FONT': true,
-      'STYLE': true,
-      'SMALL': true,
-      'LABEL': true,
-      'INPUT': true,
-      'TABLE': true,
-      'TBODY': true,
-      'THEAD': true,
-      'TFOOT': true,
-      'BUTTON': true,
-      'FOOTER': true,
-      'HEADER': true,
-      'BUTTON': true,
-      'STRONG': true
     }
 
     Object.assign(this.allowTagName, setting)
 
     this.shadowFunction = new ShadowFunction({})
-    this.shadowFunction = this.shadowFunction(this.reject(this.template))({
-      __$template__: this.template,
-      __$parallel__: this.parallel.bind(this)
-    })
+
+    // 喵喵喵？
+    // this.shadowFunction = this.shadowFunction(this.reject(this.template))({
+    //   __$template__: this.template,
+    //   __$parallel__: this.parallel.bind(this)
+    // })
   }
 
-  reject (template) {
+  public reject (template) {
     let reject = `
       __$parallel__(document.body);
       __$parallel__ = null;
@@ -104,8 +109,8 @@ class ShadowDocument {
     return reject + 'window[\'$template\'].innerHTML = \'' + template + '\';'
   }
 
-  uuid (node, uuid) {
-    uuid = parseInt(node.parentNode ? node.parentNode.uuid || 0 : 0)
+  private uuid (node, uuid?) {
+    uuid = parseInt(node.parentNode ? (node.parentNode.uuid || 0) : 0, 10)
     uuid++
     this.o++
     uuid = uuid + '.' + this.o
@@ -113,14 +118,15 @@ class ShadowDocument {
     return uuid
   }
 
-  iterator (nodes) {
+  private iterator (nodes) {
     if (nodes.nextNode) return nodes
-    return DOCUMENT.createNodeIterator(nodes, NodeFilter.SHOW_ALL, null, false)
+    return DOCUMENT.createNodeIterator(nodes, NodeFilter.SHOW_ALL)
   }
 
-  walker (nodes, target, del) {
-    let node
-    while (node = nodes.nextNode()) {
+  private walker (nodes, target, del = false) {
+    let node = nodes.nextNode()
+    while (node) {
+      node = nodes.nextNode()
       if (node.uuid) continue
       this.uuid(node)
       switch (node.nodeType) {
@@ -145,11 +151,11 @@ class ShadowDocument {
     }
   }
 
-  getParentId (node, target) {
+  private getParentId (node, target) {
     return (node.parentNode ? node.parentNode.uuid : target.uuid) || 0
   }
 
-  createElement (node, target) {
+  private createElement (node, target) {
     let name = node.nodeName
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
@@ -159,13 +165,13 @@ class ShadowDocument {
         this.TREE[uuid] = DOCUMENT.createElement(name)
         break
       default:
-        throw "The tag name provided ('" + name + "') is not a valid name."
+        throw new Error(`The tag name provided ('${name}') is not a valid name.`)
     }
 
     this.TREE[puuid].appendChild(this.TREE[uuid])
   }
 
-  removeElement (node, target) {
+  private removeElement (node, target) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -175,7 +181,7 @@ class ShadowDocument {
     }
   }
 
-  createTextNode (node, target) {
+  private createTextNode (node, target) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
     let text = node.textContent
@@ -186,7 +192,7 @@ class ShadowDocument {
     }
   }
 
-  removeTextNode (node, target) {
+  private removeTextNode (node, target) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -196,7 +202,7 @@ class ShadowDocument {
     }
   }
 
-  setAttribute (name, node) {
+  private setAttribute (name, node) {
     let attri = this.TREE[node.uuid]
     let allow = this.allowTagName[node.tagName]
     let value = node.getAttribute(name)
@@ -258,7 +264,7 @@ class ShadowDocument {
       switch (typeof (e[k])) {
         case 'string':
         case 'number':
-        case 'bollean':
+        case 'boolean':
           event[k] = e[k]
           break
       }
@@ -280,10 +286,10 @@ class ShadowDocument {
               this.setCharacterData(target)
               break
             case 'childList':
-              for (let node of record.addedNodes) {
+              for (let node of Array.from(record.addedNodes)) {
                 this.walker(this.iterator(node), target)
               }
-              for (let node of record.removedNodes) {
+              for (let node of Array.from(record.removedNodes)) {
                 this.walker(this.iterator(node), target, true)
               }
               break

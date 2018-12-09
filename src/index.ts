@@ -11,7 +11,7 @@ export {
   ShadowDocument,
   WorkerFunction,
   ShadowPreact,
-  Sandbox,
+  // Sandbox,
   safeEval,
   jsonp,
   TryAgain

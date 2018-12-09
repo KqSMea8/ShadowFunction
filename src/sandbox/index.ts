@@ -1,14 +1,20 @@
 'use strict'
 
 class Sandbox {
-  constructor (white) {
-    const sandbox = this.sandbox = this.iframe = document.createElement('iframe')
+  public window!: Window
+  private sandbox: HTMLIFrameElement
+  // private iframe: HTMLIFrameElement
+  private content: Document
+  // private document!: Document
+
+  constructor (white?) {
+    const sandbox = this.sandbox /* = this.iframe */ = document.createElement('iframe')
     sandbox.setAttribute('sandbox', 'allow-scripts allow-same-origin')
 
     sandbox.style.display = 'none'
-    document.documentElement.appendChild(sandbox)
+    ;(document.documentElement as HTMLHtmlElement).appendChild(sandbox)
 
-    this.content = this.sandbox.contentDocument
+    this.content = this.sandbox.contentDocument as Document
     this.open().write('').close().init()
 
     if (!white) {
@@ -19,9 +25,9 @@ class Sandbox {
   }
 
   init () {
-    const contentWindow = this.sandbox.contentWindow
+    const contentWindow = this.sandbox.contentWindow as Window
     this.window = contentWindow.window
-    this.document = contentWindow.document
+    // this.document = contentWindow.document
     return this
   }
 
@@ -30,7 +36,7 @@ class Sandbox {
     return this
   }
 
-  write (head, body, context) {
+  write (head, body?, context?) {
     if (head || body) {
       context = '<!DOCTYPE html>' +
         '<html>' +
@@ -55,7 +61,8 @@ class Sandbox {
 
   exit () {
     this.sandbox.src = 'about:blank'
-    this.sandbox.parentNode.removeChild(this.sandbox)
+    let parentNode = this.sandbox.parentNode
+    parentNode && parentNode.removeChild(this.sandbox)
   }
 }
 

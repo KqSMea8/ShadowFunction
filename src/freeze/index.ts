@@ -1,7 +1,7 @@
 import { getObjectType } from '../objectType/index'
 
-function freeze (object, deep, exclude) {
-  exclude = getObjectType(exclude) == 'Object' ? exclude : {}
+function freeze (object, deep: boolean, exclude?) {
+  exclude = getObjectType(exclude) === 'Object' ? exclude : {}
   if (deep) {
     let propNames = Object.getOwnPropertyNames(object)
 
@@ -22,7 +22,7 @@ function freeze (object, deep, exclude) {
 
       let descriptor = Object.getOwnPropertyDescriptor(object, name)
 
-      if (!descriptor.writable) break
+      if (descriptor && !descriptor.writable) break
 
       object[name] = value && typeof value === 'object'
         ? freeze(value, true) : value

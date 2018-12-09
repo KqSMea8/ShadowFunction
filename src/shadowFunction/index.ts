@@ -6,69 +6,66 @@ import { safeEval } from '../safeEval/index'
 
 // ShadowFunction
 class ShadowFunction {
-  constructor (scriptStr) {
-    this.sandbox = new Sandbox()
-    this.shadowToString = this.sandbox.window.Object.toString
-    this.ShadowFunction = this.sandbox.window.Function
-    this.init()
+  private sandbox = new Sandbox()
+  private tracker = (_param) => { /* noop */ }
+  private shadowToString = this.sandbox.window['Object'].toString
+  private ShadowFunction = this.sandbox.window['Function']
+  private shadowFunction !: ShadowFunction
+  private allowProtoProperties = {
+    Node: [
+      'nodeName',
+      'nodeType',
+      'textContent'
+    ],
+    Element: [
+      'style',
+      'onblur',
+      'onfocus',
+      'onscroll',
+      'offsetWidth',
+      'offsetHeight',
+      'clientWidth',
+      'clientHeight',
+      'innerText',
+      'setAttribute',
+      'removeAttribute',
+      'createTextNode',
+      'addEventListener',
+      'getElementsByTagName'
+    ],
+    HTMLElement: [],
+    HTMLBodyElement: [],
+    HTMLDivElement: [],
+    HTMLUListElement: [],
+    HTMLLIElement: [],
+    HTMLVideoElement: [],
+    HTMLAudioElement: [],
+    HTMLSelectElement: [],
+    HTMLOptionElement: [],
+    HTMLInputElement: [],
+    HTMLSpanElement: [],
+    HTMLDListElement: [],
+    HTMLFontElement: [],
+    HTMLHeadingElement: [],
+    HTMLParagraphElement: []
+  }
 
+  constructor (scriptStr) {
     switch (typeof (scriptStr)) {
       case 'object':
         return this.setAllowProtoProperties(scriptStr)
       case 'string':
         return this.runShadow(scriptStr)
       default:
-        throw 'Uncaught SyntaxError: Unexpected identifier'
+        throw new Error('Uncaught SyntaxError: Unexpected identifier')
     }
   }
 
-  init () {
-    this.allowProtoProperties = {
-      Node: [
-        'nodeName',
-        'nodeType',
-        'textContent'
-      ],
-      Element: [
-        'style',
-        'onblur',
-        'onfocus',
-        'onscroll',
-        'offsetWidth',
-        'offsetHeight',
-        'clientWidth',
-        'clientHeight',
-        'innerText',
-        'setAttribute',
-        'removeAttribute',
-        'createTextNode',
-        'addEventListener',
-        'getElementsByTagName'
-      ],
-      HTMLElement: [],
-      HTMLBodyElement: [],
-      HTMLDivElement: [],
-      HTMLUListElement: [],
-      HTMLLIElement: [],
-      HTMLVideoElement: [],
-      HTMLAudioElement: [],
-      HTMLSelectElement: [],
-      HTMLOptionElement: [],
-      HTMLInputElement: [],
-      HTMLSpanElement: [],
-      HTMLDListElement: [],
-      HTMLFontElement: [],
-      HTMLHeadingElement: [],
-      HTMLParagraphElement: []
-    }
-    this.tracker = () => {}
-  }
-
-  event (tracker) {
+  private event (tracker) {
     this.tracker = tracker
   }
 
-  getAllowProtoProperties (constructorName) {
+  private getAllowProtoProperties (constructorName) {
     const properties = this.allowProtoProperties
     let allowProperties = properties[constructorName]
     if (typeof (allowProperties) === 'function') return allowProperties()
@@ -78,26 +75,26 @@ class ShadowFunction {
     return allowProperties
   }
 
-  setAllowProtoProperties (allowProperties) {
+  private setAllowProtoProperties (allowProperties) {
     Object.assign(this.allowProtoProperties, allowProperties)
     return this.runShadow.bind(this)
   }
 
-  proxy (object, origin) {
+  private proxy (object, origin) {
     let propNames = Object.getOwnPropertyNames(object)
     let safeSetter = this.safeSetter.bind(this)
     let safeGetter = this.safeGetter.bind(this)
     return new Proxy(safeEval(`({${propNames.length ? propNames.join(':{},') + ':{}' : ''}})`), {
-      get (target, name) {
+      get (_target, name) {
         return safeGetter(object, name)
       },
-      set: (target, name, value) => {
+      set: (_target, name, value) => {
         return safeSetter(origin, name, value)
       }
     })
   }
 
-  proxyEach (object) {
+  private proxyEach (object) {
     if (!object) return safeEval('(undefined)')
     let target = safeEval('({})')
     let prototype = getObjectType(object)
@@ -126,7 +123,7 @@ class ShadowFunction {
             break
           case 'string':
           case 'number':
-          case 'bollean':
+          case 'boolean':
             target[name] = value
             break
         }
@@ -136,7 +133,7 @@ class ShadowFunction {
     return this.proxy(target, object)
   }
 
-  safeSetter (object, name, value) {
+  private safeSetter (object, name, value) {
     let valueType = typeof (value)
     let proxyEach = this.proxyEach.bind(this)
     let ShadowFunction = this.ShadowFunction
@@ -148,7 +145,7 @@ class ShadowFunction {
       propNames = propNames.concat(whitelist)
     }
 
-    if (propNames.indexOf(name) == -1) {
+    if (propNames.indexOf(name) === -1) {
       this.tracker({
         object,
         name,
@@ -161,7 +158,7 @@ class ShadowFunction {
     switch (valueType) {
       case 'string':
       case 'number':
-      case 'bollean':
+      case 'boolean':
         object[name] = value
         break
       case 'function':
@@ -181,7 +178,7 @@ class ShadowFunction {
     }
   }
 
-  safeGetter (object, name) {
+  private safeGetter (object, name) {
     let value = object[name]
     let valueType = typeof (value)
     let proxyEach = this.proxyEach.bind(this)
@@ -194,7 +191,7 @@ class ShadowFunction {
       propNames = propNames.concat(whitelist)
     }
 
-    if (propNames.indexOf(name) == -1) {
+    if (propNames.indexOf(name) === -1) {
       this.tracker({
         object,
         name,
@@ -208,7 +205,7 @@ class ShadowFunction {
       case 'string':
       case 'number':
       case 'object':
-      case 'bollean':
+      case 'boolean':
         return value
       case 'function':
         return new ShadowFunction('value', 'object', 'proxy', `
@@ -218,20 +215,24 @@ class ShadowFunction {
     }
   }
 
-  runShadow (scriptStr) {
+  private runShadow (scriptStr) {
     this.shadowFunction = new this.ShadowFunction('(function(apply){with(apply) {' + scriptStr + '}})(this)')
     return this.runScript.bind(this)
   }
 
-  runScript (that, event) {
+  private runScript (that, event) {
     let target = this.proxyEach(that)
     event && this.event(event)
-    this.shadowFunction.apply(target)
+    ;(this.shadowFunction as any).apply(target) // 喵喵喵？
     return {
       run: this.runShadow.bind(this),
       proxy: this.proxyEach.bind(this),
       sandbox: this.sandbox
     }
+  }
+
+  public run () { // 没看到这个方法，先加个空的
+
   }
 }
 
