@@ -1,7 +1,6 @@
-"use strict"
+'use strict'
 
 import { Sandbox } from '../sandbox/index'
-
 
 // snadbox && shadowSandbox
 const shadowSandbox = new Sandbox()

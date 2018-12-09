@@ -1,6 +1,6 @@
 const object2params = (obj) => {
   let url = ''
-  ;(function (obj){
+  ;(function (obj) {
     let kvArr = Object.entries(obj)
     kvArr.forEach(v => {
       if (Object.prototype.toString.call(v[1]) == '[object Object]') {

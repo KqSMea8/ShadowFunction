@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 
 import { ShadowFunction } from '../shadowFunction/index'
 
@@ -6,13 +6,13 @@ const DOCUMENT = document
 
 // ShadowDocument
 class ShadowDocument {
-  constructor(root, template, setting) {
+  constructor (root, template, setting) {
     this.init(root, template, setting)
 
     return this.shadowFunction.run.bind(this)
   }
 
-  init(root, template, setting) {
+  init (root, template, setting) {
     let shadowRoot = root.createShadowRoot ? root.createShadowRoot() : root
     this.template = template
     this.o = 0
@@ -65,7 +65,7 @@ class ShadowDocument {
     })
   }
 
-  reject(template) {
+  reject (template) {
     let reject = `
       __$parallel__(document.body);
       __$parallel__ = null;
@@ -104,7 +104,7 @@ class ShadowDocument {
     return reject + 'window[\'$template\'].innerHTML = \'' + template + '\';'
   }
 
-  uuid(node, uuid) {
+  uuid (node, uuid) {
     uuid = parseInt(node.parentNode ? node.parentNode.uuid || 0 : 0)
     uuid++
     this.o++
@@ -113,12 +113,12 @@ class ShadowDocument {
     return uuid
   }
 
-  iterator(nodes) {
+  iterator (nodes) {
     if (nodes.nextNode) return nodes
     return DOCUMENT.createNodeIterator(nodes, NodeFilter.SHOW_ALL, null, false)
   }
 
-  walker(nodes, target, del) {
+  walker (nodes, target, del) {
     let node
     while (node = nodes.nextNode()) {
       if (node.uuid) continue
@@ -145,17 +145,17 @@ class ShadowDocument {
     }
   }
 
-  getParentId(node, target) {
+  getParentId (node, target) {
     return (node.parentNode ? node.parentNode.uuid : target.uuid) || 0
   }
 
-  createElement(node, target) {
+  createElement (node, target) {
     let name = node.nodeName
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
     switch (name) {
-      case !!this.allowTagName[name] ? name : null:
+      case this.allowTagName[name] ? name : null:
         this.TREE[uuid] = DOCUMENT.createElement(name)
         break
       default:
@@ -165,7 +165,7 @@ class ShadowDocument {
     this.TREE[puuid].appendChild(this.TREE[uuid])
   }
 
-  removeElement(node, target) {
+  removeElement (node, target) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -175,7 +175,7 @@ class ShadowDocument {
     }
   }
 
-  createTextNode(node, target) {
+  createTextNode (node, target) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
     let text = node.textContent
@@ -186,7 +186,7 @@ class ShadowDocument {
     }
   }
 
-  removeTextNode(node, target) {
+  removeTextNode (node, target) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -196,7 +196,7 @@ class ShadowDocument {
     }
   }
 
-  setAttribute(name, node) {
+  setAttribute (name, node) {
     let attri = this.TREE[node.uuid]
     let allow = this.allowTagName[node.tagName]
     let value = node.getAttribute(name)
@@ -231,12 +231,12 @@ class ShadowDocument {
                 console.log(e, 99)
               }
             }
-          `)({event: node[name], node, e: this.shadowEvent(e)})
+          `)({ event: node[name], node, e: this.shadowEvent(e) })
         }, false)
         return
     }
 
-    if (typeof(allow) === 'function') {
+    if (typeof (allow) === 'function') {
       if (!allow(name, value)) {
         return
       }
@@ -247,15 +247,15 @@ class ShadowDocument {
     }
   }
 
-  setCharacterData(node) {
+  setCharacterData (node) {
     let char = this.TREE[node.uuid]
     if (char) char.textContent = node.textContent
   }
 
-  shadowEvent(e) {
+  shadowEvent (e) {
     let event = {}
     for (let k in e) {
-      switch (typeof(e[k]) ) {
+      switch (typeof (e[k])) {
         case 'string':
         case 'number':
         case 'bollean':
@@ -266,20 +266,20 @@ class ShadowDocument {
     return event
   }
 
-  parallel(root) {
-    this.shadowFunction('observer()')({observer: () => {
+  parallel (root) {
+    this.shadowFunction('observer()')({ observer: () => {
       new MutationObserver((records) => {
         console.log(records, 8889)
         for (let record of records) {
           let target = record.target
           switch (record.type) {
-            case "attributes":
+            case 'attributes':
               this.setAttribute(record.attributeName, target)
               break
-            case "characterData":
+            case 'characterData':
               this.setCharacterData(target)
               break
-            case "childList":
+            case 'childList':
               for (let node of record.addedNodes) {
                 this.walker(this.iterator(node), target)
               }
@@ -297,7 +297,7 @@ class ShadowDocument {
         attributeOldValue: true,
         characterDataOldValue: true
       })
-    }})
+    } })
   }
 }
 

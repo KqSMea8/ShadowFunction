@@ -9,7 +9,6 @@ const sandbox = new Sandbox(true)
 const sandboxWindow = sandbox.window
 const sandboxDocument = sandboxWindow.document
 
-
 // 死亡沙箱覆盖
 for (let key in sandboxWindow) {
   if (['top', 'window', 'document', 'chrome', 'caches', 'location'].indexOf(key) !== -1) continue
@@ -19,7 +18,7 @@ for (let key in sandboxWindow) {
 }
 
 const jsonp = function (options) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     let { url, data, callbackKey, callbackName, timeout } = options
     let script
     let tryObj
@@ -47,16 +46,16 @@ const jsonp = function (options) {
     tryObj = new TryAgain(send, { timeout: 3000, polls: 2 })
 
     // abort
-    function abort() {
+    function abort () {
       clearTimeout(timeoutId)
-      window.removeEventListener("online", send, false)
+      window.removeEventListener('online', send, false)
       try {
         sandboxDocument.documentElement.removeChild(script)
       } catch (e) {}
     }
 
     // 错误处理
-    function over() {
+    function over () {
       abort()
       tryObj.try()
       if (tryObj.polls == 0) {
@@ -65,7 +64,7 @@ const jsonp = function (options) {
     }
 
     function send () {
-      script = sandboxDocument.createElement("script")
+      script = sandboxDocument.createElement('script')
       script.charset = 'utf-8'
       script.src = url
 
@@ -84,7 +83,7 @@ const jsonp = function (options) {
     // 断网重连
     if (navigator.onLine === false) {
       tryObj.stop()
-      window.addEventListener("online", send, false)
+      window.addEventListener('online', send, false)
     }
   })
 }

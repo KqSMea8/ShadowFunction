@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 
 import { getObjectType } from '../objectType/index'
 import { Sandbox } from '../sandbox/index'
@@ -6,13 +6,13 @@ import { safeEval } from '../safeEval/index'
 
 // ShadowFunction
 class ShadowFunction {
-  constructor(scriptStr) {
+  constructor (scriptStr) {
     this.sandbox = new Sandbox()
     this.shadowToString = this.sandbox.window.Object.toString
     this.ShadowFunction = this.sandbox.window.Function
     this.init()
 
-    switch (typeof(scriptStr)) {
+    switch (typeof (scriptStr)) {
       case 'object':
         return this.setAllowProtoProperties(scriptStr)
       case 'string':
@@ -22,7 +22,7 @@ class ShadowFunction {
     }
   }
 
-  init() {
+  init () {
     this.allowProtoProperties = {
       Node: [
         'nodeName',
@@ -64,26 +64,26 @@ class ShadowFunction {
     this.tracker = () => {}
   }
 
-  event(tracker) {
+  event (tracker) {
     this.tracker = tracker
   }
 
-  getAllowProtoProperties(constructorName) {
+  getAllowProtoProperties (constructorName) {
     const properties = this.allowProtoProperties
     let allowProperties = properties[constructorName]
-    if (typeof(allowProperties) == 'function') return allowProperties()
+    if (typeof (allowProperties) === 'function') return allowProperties()
     if (/HTML(\w+)Element/.exec(constructorName)) {
       allowProperties.concat(properties['HTMLElement'], properties['Element'], properties['Node'])
     }
     return allowProperties
   }
 
-  setAllowProtoProperties(allowProperties) {
+  setAllowProtoProperties (allowProperties) {
     Object.assign(this.allowProtoProperties, allowProperties)
     return this.runShadow.bind(this)
   }
 
-  proxy(object, origin) {
+  proxy (object, origin) {
     let propNames = Object.getOwnPropertyNames(object)
     let safeSetter = this.safeSetter.bind(this)
     let safeGetter = this.safeGetter.bind(this)
@@ -97,7 +97,7 @@ class ShadowFunction {
     })
   }
 
-  proxyEach(object) {
+  proxyEach (object) {
     if (!object) return safeEval('(undefined)')
     let target = safeEval('({})')
     let prototype = getObjectType(object)
@@ -110,7 +110,7 @@ class ShadowFunction {
 
     for (let name of propNames) {
       let value = object[name]
-      let valueType = typeof(value)
+      let valueType = typeof (value)
 
       if (value) {
         switch (valueType) {
@@ -137,7 +137,7 @@ class ShadowFunction {
   }
 
   safeSetter (object, name, value) {
-    let valueType = typeof(value)
+    let valueType = typeof (value)
     let proxyEach = this.proxyEach.bind(this)
     let ShadowFunction = this.ShadowFunction
     let prototype = getObjectType(object)
@@ -179,13 +179,11 @@ class ShadowFunction {
         })
         break
     }
-
-    return
   }
 
   safeGetter (object, name) {
     let value = object[name]
-    let valueType = typeof(value)
+    let valueType = typeof (value)
     let proxyEach = this.proxyEach.bind(this)
     let ShadowFunction = this.ShadowFunction
     let prototype = getObjectType(object)
@@ -217,16 +215,15 @@ class ShadowFunction {
           return function () {
             return proxy(value.apply(object, arguments))
           }`)(value, object, proxyEach)
-
     }
   }
 
-  runShadow(scriptStr) {
+  runShadow (scriptStr) {
     this.shadowFunction = new this.ShadowFunction('(function(apply){with(apply) {' + scriptStr + '}})(this)')
     return this.runScript.bind(this)
   }
 
-  runScript(that, event) {
+  runScript (that, event) {
     let target = this.proxyEach(that)
     event && this.event(event)
     this.shadowFunction.apply(target)

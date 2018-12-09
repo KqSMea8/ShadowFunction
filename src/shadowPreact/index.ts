@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 
 import { ShadowDocument } from '../shadowDocument/index'
 
@@ -6,7 +6,7 @@ const PREACR = `!function(){"use strict";function e(e,t){var n,o,r,i,l=A;for(i=a
 
 // ShadowFunction
 class ShadowPreact {
-  constructor(script) {
+  constructor (script) {
     return new ShadowDocument(document.body, '<div id="app"></div>')(PREACR)().run(script)
   }
 }

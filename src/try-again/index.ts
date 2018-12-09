@@ -1,6 +1,6 @@
 
 class TryAgain {
-  constructor(task, options) {
+  constructor (task, options) {
     this.task = task
     this.options = options
     this.polls = options.polls || 2
