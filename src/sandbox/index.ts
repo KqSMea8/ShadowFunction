@@ -1,33 +1,25 @@
 'use strict'
 
 class Sandbox {
-  public window!: Window
+  public window: Window
+  public document: Document
   private sandbox: HTMLIFrameElement
-  // private iframe: HTMLIFrameElement
   private content: Document
-  // private document!: Document
 
-  constructor (white?) {
-    const sandbox = this.sandbox /* = this.iframe */ = document.createElement('iframe')
+  constructor (white?: boolean) {
+    const sandbox = this.sandbox = document.createElement('iframe')
+    const documentElement = document.documentElement as HTMLHtmlElement
     sandbox.setAttribute('sandbox', 'allow-scripts allow-same-origin')
-
     sandbox.style.display = 'none'
-    ;(document.documentElement as HTMLHtmlElement).appendChild(sandbox)
+    documentElement.appendChild(sandbox)
 
-    this.content = this.sandbox.contentDocument as Document
-    this.open().write('').close().init()
-
-    if (!white) {
-      this.exit()
-    }
-
-    return this
-  }
-
-  init () {
     const contentWindow = this.sandbox.contentWindow as Window
+    const contentDocument = this.sandbox.contentDocument as Document
+    this.window = contentWindow
+    this.content = this.document = contentDocument
+    this.open().write('').close()
     this.window = contentWindow.window
-    // this.document = contentWindow.document
+    if (!white) this.exit()
     return this
   }
 
@@ -36,7 +28,7 @@ class Sandbox {
     return this
   }
 
-  write (head, body?, context?) {
+  write (head: string, body?: string, context?: string) {
     if (head || body) {
       context = '<!DOCTYPE html>' +
         '<html>' +
@@ -61,7 +53,7 @@ class Sandbox {
 
   exit () {
     this.sandbox.src = 'about:blank'
-    let parentNode = this.sandbox.parentNode
+    const parentNode = this.sandbox.parentNode as HTMLHtmlElement
     parentNode && parentNode.removeChild(this.sandbox)
   }
 }

@@ -1,6 +1,8 @@
-const getObjectType = (object) => {
-  let typeStr = '' + object
-  let objectType = (/\s*\[(\w+) (\w+)\]\s*/.exec(typeStr) || [])
+'use strict'
+
+const getObjectType = (object: any): string => {
+  const objectStr = Object.prototype.toString.call(object)
+  const objectType = (/\s*\[(\w+) (\w+)\]\s*/.exec(objectStr) || [])
 
   switch (objectType[1]) {
     case 'object':
@@ -12,4 +14,6 @@ const getObjectType = (object) => {
   return 'unknow'
 }
 
-export { getObjectType }
+export {
+  getObjectType
+}

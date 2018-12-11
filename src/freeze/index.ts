@@ -1,6 +1,8 @@
+'use strict'
+
 import { getObjectType } from '../objectType/index'
 
-function freeze (object, deep: boolean, exclude?) {
+function freeze (object: object, deep = false, exclude?) {
   exclude = getObjectType(exclude) === 'Object' ? exclude : {}
   if (deep) {
     let propNames = Object.getOwnPropertyNames(object)
@@ -20,12 +22,12 @@ function freeze (object, deep: boolean, exclude?) {
 
       if (isFrozen(value)) break
 
-      let descriptor = Object.getOwnPropertyDescriptor(object, name)
+      let descriptor = Object.getOwnPropertyDescriptor(object, name) || {}
 
-      if (descriptor && !descriptor.writable) break
+      if (!descriptor.writable) break
 
-      object[name] = value && typeof value === 'object'
-        ? freeze(value, true) : value
+      object[name] = value && typeof value === 'object' ?
+        freeze(value, true) : value
     }
   }
 
@@ -36,4 +38,7 @@ function isFrozen (obj) {
   return Object.isFrozen(obj)
 }
 
-export { freeze, isFrozen }
+export {
+  freeze,
+  isFrozen
+}

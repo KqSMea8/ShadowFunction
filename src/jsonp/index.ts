@@ -1,3 +1,5 @@
+'use strict'
+
 import { Sandbox } from '../sandbox/index'
 import { TryAgain } from '../try-again/index'
 import { object2params } from '../url/index'
@@ -8,16 +10,6 @@ let JSONP_AUTO_INCREMENT_ID = 0
 const sandbox = new Sandbox(true)
 const sandboxWindow = sandbox.window
 const sandboxDocument = sandboxWindow.document
-
-// 死亡沙箱覆盖
-for (let key in sandboxWindow) {
-  if (['top', 'window', 'document', 'chrome', 'caches', 'location'].indexOf(key) !== -1) continue
-  try {
-    // sandboxWindow[key] = shadowWindow[key] // 喵喵喵？
-  } catch (e) {
-    //
-  }
-}
 
 const jsonp = function (options) {
   return new Promise(function (resolve, reject) {
@@ -68,7 +60,7 @@ const jsonp = function (options) {
     }
 
     function send () {
-      script = sandboxDocument.createElement('script')
+      script = sandboxDocument.createElement('SCRIPT')
       script.charset = 'utf-8'
       script.src = url
 
@@ -91,4 +83,6 @@ const jsonp = function (options) {
     }
   })
 }
-export { jsonp }
+export {
+  jsonp
+}

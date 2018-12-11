@@ -1,53 +1,50 @@
 {
-  "name": "ShadowFunction",
-  "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.common.js",
-  "module": "dist/index.mjs",
-  "jsnext:main": "dist/index.mjs",
-  "types": "dist/typings/index.d.ts",
+  "name": "shadow-function",
+  "version": "1.0.20",
+  "description": "ioing lib - shadow Function, worker Function",
+  "keywords": [
+    "safe-eval",
+    "snadbox",
+    "sandboxFunction",
+    "shadowFunction",
+    "workerFunction"
+  ],
+  "main": "src/index.js",
   "scripts": {
-    "clean": "rimraf ./dist",
-    "build": "npm run clean && npm run lint && node scripts/build.js",
-    "dev": "m-sh 'npm run dev:tsc'",
-    "dev:tsc": "npm run clean && tsc -w",
-    "debug": "node --inspect-brk dist/index.js",
-    "lint": "tslint --project tsconfig.json --format stylish",
-    "prepublish": "npm test",
-    "test": "npm run lint && npm run build && npm run jasmine",
-    "jasmine": "istanbul cover jasmine-node test"
+    "watch": "webpack --watch",
+    "build": "webpack --config=webpack.config.js",
+    "rollup": "rollup -c rollup.config.js",
+    "start": "webpack-dev-server --env development"
   },
   "dependencies": {
-    "tslib": "1.x.x"
+    "@types/node": "^10.12.12"
   },
   "devDependencies": {
-    "@types/node": "^10.12.12",
-    "ghooks": "^2.0.2",
-    "istanbul": "^0.4.5",
-    "jasmine-node": "^1.14.5",
-    "lodash.merge": "^4.6.1",
-    "multi-shell": "^1.0.3",
-    "rimraf": "*",
-    "rollup": "^0.67.4",
+    "@babel/core": "^7.2.0",
+    "@babel/preset-env": "^7.2.0",
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
+    "babel-plugin-external-helpers": "^6.22.0",
+    "babel-plugin-syntax-dynamic-import": "^6.18.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.7.0",
+    "babel-runtime": "^6.26.0",
+    "git-rev-sync": "^1.9.1",
+    "html-webpack-plugin": "^3.2.0",
+    "rollup": "^0.51.8",
+    "rollup-plugin-babel": "^3.0.7",
+    "rollup-plugin-node-resolve": "^3.3.0",
     "rollup-plugin-typescript2": "^0.18.0",
-    "tslint": "5.x.x",
+    "ts-loader": "^5.3.1",
+    "tslint": "^5.11.0",
     "tslint-config-standard": "^8.0.1",
     "typescript": "^3.2.2",
-    "uglify-js": "^3.3.21"
+    "uglifyjs-webpack-plugin": "^1.2.7",
+    "webpack": "^4.27.1",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "^3.1.10"
   },
-  "config": {
-    "ghooks": {
-      "pre-commit": "sh scripts/pre-commit.sh"
-    }
-  },
-  "engines": {
-    "node": ">=6"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aligay/jsonuri.git"
-  },
-  "bugs": "https://github.com/aligay/jsonuri/issues",
-  "homepage": "https://jsonuri.js.org"
+  "author": "lien",
+  "license": "MIT"
 }

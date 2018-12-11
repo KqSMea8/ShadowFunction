@@ -6,8 +6,9 @@ const PREACR = `!function(){"use strict";function e(e,t){var n,o,r,i,l=A;for(i=a
 
 // ShadowFunction
 class ShadowPreact {
-  constructor (script) {
-    return new ShadowDocument(document.body, '<div id="app"></div>')(PREACR)().run(script)
+  constructor (script, setting) {
+    // @ts-ignore
+    return new ShadowDocument(document.body, '<div id="app"></div>', setting)(PREACR)().run(script)
   }
 }
 

@@ -6,9 +6,9 @@ const DOCUMENT = document
 
 // ShadowDocument
 class ShadowDocument {
-  private o: number = 0
-  public template!: string
   private TREE
+  private o: number = 0
+  private sandbox
   private shadowFunction
   private allowTagName = {
     'DIV': true,
@@ -26,7 +26,6 @@ class ShadowDocument {
     'TH': true,
     'TR': true,
     'TT': true,
-    'IMG': true,
     'NAV': true,
     'SUP': true,
     'SUB': true,
@@ -46,34 +45,24 @@ class ShadowDocument {
     'STRONG': true
   }
 
-  constructor (root, template, setting = {}) {
-    this.init(root, template, setting)
-
-    return this.shadowFunction.runScript.bind(this) // 喵喵喵？
-  }
-
-  private init (root, template: string, setting) {
-    let shadowRoot = root.createShadowRoot ? root.createShadowRoot() : root
-    this.template = template
+  constructor (root: any, template: string, setting: object) {
     this.TREE = {
-      0: shadowRoot
+      0: root.attachShadow ? root.attachShadow({ mode: 'open' }) : root
     }
-
     Object.assign(this.allowTagName, setting)
-
     this.shadowFunction = new ShadowFunction({})
+    this.shadowFunction = this.shadowFunction(this.reject(template))({
+      __$template__: template
+    })
+    this.sandbox = this.shadowFunction.sandbox
+    this.parallel(this.sandbox.document)
 
-    // 喵喵喵？
-    // this.shadowFunction = this.shadowFunction(this.reject(this.template))({
-    //   __$template__: this.template,
-    //   __$parallel__: this.parallel.bind(this)
-    // })
+    // @ts-ignore
+    return this.shadowFunction.run.bind(this)
   }
 
-  public reject (template) {
+  private reject (template) {
     let reject = `
-      __$parallel__(document.body);
-      __$parallel__ = null;
       (function () {
         var __$getEventTarget__ = function (object) {
           if (!object) return
@@ -109,8 +98,8 @@ class ShadowDocument {
     return reject + 'window[\'$template\'].innerHTML = \'' + template + '\';'
   }
 
-  private uuid (node, uuid?) {
-    uuid = parseInt(node.parentNode ? (node.parentNode.uuid || 0) : 0, 10)
+  private uuid (node: any, uuid?) {
+    uuid = parseInt(node.parentNode ? node.parentNode.uuid || 0 : 0, 10)
     uuid++
     this.o++
     uuid = uuid + '.' + this.o
@@ -118,15 +107,16 @@ class ShadowDocument {
     return uuid
   }
 
-  private iterator (nodes) {
+  private iterator (nodes: any) {
     if (nodes.nextNode) return nodes
-    return DOCUMENT.createNodeIterator(nodes, NodeFilter.SHOW_ALL)
+    return DOCUMENT.createNodeIterator(nodes, NodeFilter.SHOW_ALL, null)
   }
 
-  private walker (nodes, target, del = false) {
+  private walker (nodes: any, target: any, del = false) {
     let node = nodes.nextNode()
     while (node) {
       node = nodes.nextNode()
+      if (!node) break
       if (node.uuid) continue
       this.uuid(node)
       switch (node.nodeType) {
@@ -151,11 +141,11 @@ class ShadowDocument {
     }
   }
 
-  private getParentId (node, target) {
+  private getParentId (node: any, target: any) {
     return (node.parentNode ? node.parentNode.uuid : target.uuid) || 0
   }
 
-  private createElement (node, target) {
+  private createElement (node: any, target: any) {
     let name = node.nodeName
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
@@ -171,7 +161,7 @@ class ShadowDocument {
     this.TREE[puuid].appendChild(this.TREE[uuid])
   }
 
-  private removeElement (node, target) {
+  private removeElement (node: any, target: any) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -181,7 +171,7 @@ class ShadowDocument {
     }
   }
 
-  private createTextNode (node, target) {
+  private createTextNode (node: any, target: any) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
     let text = node.textContent
@@ -192,7 +182,7 @@ class ShadowDocument {
     }
   }
 
-  private removeTextNode (node, target) {
+  private removeTextNode (node: any, target: any) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -202,7 +192,7 @@ class ShadowDocument {
     }
   }
 
-  private setAttribute (name, node) {
+  private setAttribute (name: string, node: any) {
     let attri = this.TREE[node.uuid]
     let allow = this.allowTagName[node.tagName]
     let value = node.getAttribute(name)
@@ -231,18 +221,14 @@ class ShadowDocument {
           this.shadowFunction.run(`
             for (let i = 0; i < event.length; i++) {
               let even = event[i]
-              try {
-                typeof(even) === 'function' && even.call(node, e)
-              } catch (e) {
-                console.log(e, 99)
-              }
+              typeof(even) === 'function' && even.call(node, e)
             }
           `)({ event: node[name], node, e: this.shadowEvent(e) })
         }, false)
         return
     }
 
-    if (typeof (allow) === 'function') {
+    if (typeof(allow) === 'function') {
       if (!allow(name, value)) {
         return
       }
@@ -253,12 +239,12 @@ class ShadowDocument {
     }
   }
 
-  setCharacterData (node) {
+  private setCharacterData (node: any) {
     let char = this.TREE[node.uuid]
     if (char) char.textContent = node.textContent
   }
 
-  shadowEvent (e) {
+  private shadowEvent (e: object) {
     let event = {}
     for (let k in e) {
       switch (typeof (e[k])) {
@@ -272,24 +258,26 @@ class ShadowDocument {
     return event
   }
 
-  parallel (root) {
-    this.shadowFunction('observer()')({ observer: () => {
+  private parallel (root: HTMLElement) {
+    this.shadowFunction.run('observer()')({ observer: () => {
       new MutationObserver((records) => {
-        console.log(records, 8889)
         for (let record of records) {
           let target = record.target
           switch (record.type) {
             case 'attributes':
+              // @ts-ignore
               this.setAttribute(record.attributeName, target)
               break
             case 'characterData':
               this.setCharacterData(target)
               break
             case 'childList':
-              for (let node of Array.from(record.addedNodes)) {
+              // @ts-ignore
+              for (let node of record.addedNodes) {
                 this.walker(this.iterator(node), target)
               }
-              for (let node of Array.from(record.removedNodes)) {
+              // @ts-ignore
+              for (let node of record.removedNodes) {
                 this.walker(this.iterator(node), target, true)
               }
               break
