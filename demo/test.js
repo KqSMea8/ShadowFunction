@@ -42,7 +42,7 @@ window.Strongbox = Strongbox
 // 攻防测试
 new ShadowFunction(`
     console.log(k, 'ISV 代码测试写在这')
-    console.log('test:', j.toString)
+    console.log('test:', j.toString, shadowWindow.constructor.valueOf.constructor('alert(9)')())
 
     // ISV 代码测试写在这
     // ISV 代码测试写在这
@@ -62,6 +62,17 @@ new ShadowFunction(`
   let cookie = document.cookie(gg.password)
 
   console.log('使用闭包密码' + gg.password + '拿到 cookie:' + cookie)
+
+
+  ;(function () {
+    let document = {
+      cookie: cookie
+    }
+    let mtop = () => {
+      console.log('mtop 读取cookie，在闭包中', document.cookie)
+    }
+    mtop()
+  })()
 })()
 
 // preact 测试

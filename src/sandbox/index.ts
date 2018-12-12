@@ -24,20 +24,13 @@ class Sandbox {
 
     const windowProperty = Object.getOwnPropertyNames(this.window)
 
+    // @ts-ignore
+    this.shadowWindow = new contentWindow.Object
     for (let k of windowProperty) {
       this.shadowWindow[k] = this.window[k]
     }
 
     this.shadowWindow.shadowWindow = this.shadowWindow
-
-    // for (let k of windowProperty) {
-    //   try {
-    //     // this.window[k] = null
-    //   } catch (e) {
-    //     //
-    //   }
-    // }
-
     if (!white) this.exit()
 
     return this

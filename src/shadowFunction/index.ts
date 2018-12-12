@@ -269,14 +269,14 @@ class ShadowFunction {
     return new this.ShadowFunction('value', 'object', 'safeReturnFunction', 'proxy', `
       return (function () {
         return function () {
-          return proxy(value.apply(object, proxy(arguments)));
-        };
-      })();
+          return proxy(value.apply(object, proxy(arguments)))
+        }
+      })()
     `)(value, object, this.safeReturnFunction, this.proxyEach.bind(this))
   }
 
   public runShadow (scriptStr: string) {
-    this.shadowFunction = new this.ShadowFunction('(function(){with(arguments[0]) {' + scriptStr + '}})(this)')
+    this.shadowFunction = new this.ShadowFunction('(function () { with (arguments[0]) { ' + scriptStr + ' } })(this)')
     return this.runScript.bind(this)
   }
 

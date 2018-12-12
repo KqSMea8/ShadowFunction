@@ -1,7 +1,8 @@
+const ip = require('ip')
 const path = require('path')
 const webpack = require('webpack')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin')
 
 const dev = process.argv.slice(-1) === 'development' ? true : false
 const mode = dev ? 'development' : 'production'
@@ -61,7 +62,7 @@ module.exports = {
   ],
   devServer:{
     contentBase:'./',
-    host: '0.0.0.0',
+    host: ip.address(),
     hot: true
   },
   watchOptions: {

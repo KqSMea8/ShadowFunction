@@ -8,6 +8,7 @@ const DOCUMENT = document
 class ShadowDocument {
   private TREE
   private o: number = 0
+  private log
   private sandbox
   private ShadowFunction
   private shadowFunction
@@ -45,8 +46,15 @@ class ShadowDocument {
     'HEADER': true,
     'STRONG': true
   }
+  private tracker = (e) => {
+    if (typeof (this.log) === 'function') {
+      this.log(e)
+    } else {
+      console.log('Event Log:', e)
+    }
+  }
 
-  constructor (root: any, template: string, setting: object) {
+  constructor (root: any, template: string, setting = {}, log?) {
     this.TREE = {
       0: root.attachShadow ? root.attachShadow({ mode: 'open' }) : root
     }
@@ -56,6 +64,7 @@ class ShadowDocument {
       __$template__: template
     })
 
+    this.log = log
     this.sandbox = this.shadowFunction.sandbox
     this.ShadowFunction = this.sandbox.shadowWindow.Function
     this.shadowWindow = this.sandbox.shadowWindow
@@ -166,6 +175,10 @@ class ShadowDocument {
         this.TREE[uuid] = DOCUMENT.createElement(name)
         break
       default:
+        this.tracker({
+          tag: name,
+          action: 'createElement'
+        })
         throw new Error(`The tag name provided ('${name}') is not a valid name of whitelist.`)
     }
 
@@ -250,6 +263,11 @@ class ShadowDocument {
         if (typeof(allow) === 'function' && allow(name, value)) {
           safeAttr = true
         } else {
+          this.tracker({
+            tag: name,
+            action: 'setAttribute',
+            value
+          })
           throw new Error(`The attribute name provided ('${name}') is not a valid name of whitelist.`)
         }
         break
