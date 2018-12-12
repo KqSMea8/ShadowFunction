@@ -1,3 +1,5 @@
+'use strict'
+
 import { Sandbox } from '../sandbox/index'
 import { TryAgain } from '../try-again/index'
 import { object2params } from '../url/index'
@@ -9,17 +11,8 @@ const sandbox = new Sandbox(true)
 const sandboxWindow = sandbox.window
 const sandboxDocument = sandboxWindow.document
 
-
-// 死亡沙箱覆盖
-for (let key in sandboxWindow) {
-  if (['top', 'window', 'document', 'chrome', 'caches', 'location'].indexOf(key) !== -1) continue
-  try {
-    sandboxWindow[key] = shadowWindow[key]
-  } catch (e) {}
-}
-
 const jsonp = function (options) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     let { url, data, callbackKey, callbackName, timeout } = options
     let script
     let tryObj
@@ -32,7 +25,7 @@ const jsonp = function (options) {
     data[callbackKey] = callbackName
     sandboxWindow[callbackName] = (data) => {
       delete sandboxWindow[callbackName]
-      if (Object.prototype.toString.call(data) == '[object Object]') {
+      if (Object.prototype.toString.call(data) === '[object Object]') {
         resolve(data)
       } else {
         reject()
@@ -41,31 +34,33 @@ const jsonp = function (options) {
     payload = object2params(data)
 
     if (!url || typeof url !== 'string') return reject('params url is not defined')
-    url += (url.indexOf('?') != -1 ? '&' : '?') + payload
+    url += (url.indexOf('?') !== -1 ? '&' : '?') + payload
 
     // 异常尝试
     tryObj = new TryAgain(send, { timeout: 3000, polls: 2 })
 
     // abort
-    function abort() {
+    function abort () {
       clearTimeout(timeoutId)
-      window.removeEventListener("online", send, false)
+      window.removeEventListener('online', send, false)
       try {
-        sandboxDocument.documentElement.removeChild(script)
-      } catch (e) {}
+        (sandboxDocument.documentElement as HTMLHtmlElement).removeChild(script)
+      } catch (e) {
+        //
+      }
     }
 
     // 错误处理
-    function over() {
+    function over () {
       abort()
       tryObj.try()
-      if (tryObj.polls == 0) {
+      if (tryObj.polls === 0) {
         reject()
       }
     }
 
     function send () {
-      script = sandboxDocument.createElement("script")
+      script = sandboxDocument.createElement('SCRIPT')
       script.charset = 'utf-8'
       script.src = url
 
@@ -76,7 +71,7 @@ const jsonp = function (options) {
         tryObj.over()
       }
 
-      sandboxDocument.documentElement.appendChild(script)
+      (sandboxDocument.documentElement as HTMLHtmlElement).appendChild(script)
     }
     timeoutId = setTimeout(over, timeout)
     send()
@@ -84,8 +79,10 @@ const jsonp = function (options) {
     // 断网重连
     if (navigator.onLine === false) {
       tryObj.stop()
-      window.addEventListener("online", send, false)
+      window.addEventListener('online', send, false)
     }
   })
 }
-export { jsonp }
+export {
+  jsonp
+}

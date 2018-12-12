@@ -1,8 +1,13 @@
+'use strict'
 
 class TryAgain {
-  constructor(task, options) {
+  private task
+  private polls
+  private timeout
+  private timeoutId
+
+  constructor (task, options) {
     this.task = task
-    this.options = options
     this.polls = options.polls || 2
     this.timeout = options.timeout || 3000
     this.timeoutId = null

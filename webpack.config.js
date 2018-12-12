@@ -1,7 +1,9 @@
-const path = require("path")
+const path = require('path')
+const webpack = require('webpack')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const dev = 1|| process.argv.pop() === '--dev' ? true : false
+const dev = process.argv.slice(-1) === 'development' ? true : false
 const mode = dev ? 'development' : 'production'
 
 module.exports = {
@@ -15,12 +17,22 @@ module.exports = {
     path: path.resolve(__dirname, './dist'),
     filename: 'test' + (dev ? '.dev' : '') + '.js'
   },
+  resolve: {
+    extensions: [".ts", ".js"]
+  },
   module: {
-    rules: [{
-      test: /\.js$/,
-      exclude: /node_modules/,
-      loader: "babel-loader"
-    }]
+    rules: [
+      {
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        loader: ["babel-loader", "ts-loader"]
+      },
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        loader: "babel-loader"
+      }
+    ]
   },
   optimization: {
     nodeEnv: mode,
@@ -41,11 +53,15 @@ module.exports = {
       })
     ]
   },
-  performance: {
-    hints: false
-  },
+  plugins: [
+    new webpack.HotModuleReplacementPlugin(),
+    new HtmlWebpackPlugin({
+      title: 'ShadowFunction'
+    }),
+  ],
   devServer:{
     contentBase:'./',
+    host: '0.0.0.0',
     hot: true
   },
   watchOptions: {

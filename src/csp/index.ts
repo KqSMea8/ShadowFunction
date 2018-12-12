@@ -1,6 +1,8 @@
-const csp = (desc) => {
+'use strict'
+
+const csp = (desc: string) => {
   const meta = document.createElement('meta')
-  meta.charset = 'utf-8'
+  meta.setAttribute('charset', 'utf-8')
   meta.setAttribute('http-equiv', 'Content-Security-Policy')
   meta.setAttribute('content', desc)
   document.getElementsByTagName('head')[0].appendChild(meta)
@@ -14,4 +16,6 @@ const csp = (desc) => {
   }
 }
 
-export { csp }
+export {
+  csp
+}

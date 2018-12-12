@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 
 import { ShadowFunction } from '../shadowFunction/index'
 
@@ -6,105 +6,111 @@ const DOCUMENT = document
 
 // ShadowDocument
 class ShadowDocument {
-  constructor(root, template, setting) {
-    this.init(root, template, setting)
+  private TREE
+  private o: number = 0
+  private sandbox
+  private ShadowFunction
+  private shadowFunction
+  private shadowWindow
+  private allowTagName = {
+    'DIV': true,
+    'B': true,
+    'P': true,
+    'DL': true,
+    'DT': true,
+    'DD': true,
+    'EM': true,
+    'HR': true,
+    'UL': true,
+    'LI': true,
+    'OL': true,
+    'TD': true,
+    'TH': true,
+    'TR': true,
+    'TT': true,
+    'NAV': true,
+    'SUP': true,
+    'SUB': true,
+    'SPAN': true,
+    'FONT': true,
+    'STYLE': true,
+    'SMALL': true,
+    'LABEL': true,
+    'TABLE': true,
+    'TBODY': true,
+    'THEAD': true,
+    'TFOOT': true,
+    'BUTTON': true,
+    'FOOTER': true,
+    'HEADER': true,
+    'STRONG': true
+  }
 
+  constructor (root: any, template: string, setting: object) {
+    this.TREE = {
+      0: root.attachShadow ? root.attachShadow({ mode: 'open' }) : root
+    }
+    Object.assign(this.allowTagName, setting)
+    this.shadowFunction = new ShadowFunction({})
+    this.shadowFunction = this.shadowFunction(this.reject(template))({
+      __$template__: template
+    })
+
+    this.sandbox = this.shadowFunction.sandbox
+    this.ShadowFunction = this.sandbox.shadowWindow.Function
+    this.shadowWindow = this.sandbox.shadowWindow
+
+    this.rewrite()
+    this.parallel(this.sandbox.document)
+
+    // @ts-ignore
     return this.shadowFunction.run.bind(this)
   }
 
-  init(root, template, setting) {
-    let shadowRoot = root.createShadowRoot ? root.createShadowRoot() : root
-    this.template = template
-    this.o = 0
-    this.TREE = {
-      0: shadowRoot
+  private getShadowEventTarget (object) {
+    if (!object) return
+    if ((object.__proto__ + '').indexOf('EventTarget') !== -1) {
+      return object.__proto__
+    } else {
+      return this.getShadowEventTarget(object.__proto__)
     }
-    this.allowTagName = {
-      'DIV': true,
-      'B': true,
-      'P': true,
-      'DL': true,
-      'DT': true,
-      'DD': true,
-      'EM': true,
-      'HR': true,
-      'UL': true,
-      'LI': true,
-      'OL': true,
-      'TD': true,
-      'TH': true,
-      'TR': true,
-      'TT': true,
-      'IMG': true,
-      'NAV': true,
-      'SUP': true,
-      'SUB': true,
-      'SPAN': true,
-      'FONT': true,
-      'STYLE': true,
-      'SMALL': true,
-      'LABEL': true,
-      'INPUT': true,
-      'TABLE': true,
-      'TBODY': true,
-      'THEAD': true,
-      'TFOOT': true,
-      'BUTTON': true,
-      'FOOTER': true,
-      'HEADER': true,
-      'BUTTON': true,
-      'STRONG': true
-    }
-
-    Object.assign(this.allowTagName, setting)
-
-    this.shadowFunction = new ShadowFunction({})
-    this.shadowFunction = this.shadowFunction(this.reject(this.template))({
-      __$template__: this.template
-    })
-    this.sandbox = this.shadowFunction.sandbox
-    this.parallel.bind(this)(this.sandbox.document)
   }
 
-  reject(template) {
+  private rewrite () {
+    const ShadowEventTarget = this.getShadowEventTarget(this.shadowWindow.document.body)
+    ShadowEventTarget.addEventListener = this.ShadowFunction(`
+      return function (name, fn) {
+        var props = 'on-' + name
+        this.setAttribute(props, name)
+        if (this[props]) {
+          this[props].push(fn)
+        } else {
+          this[props] = [fn]
+        }
+      }
+    `)()
+    ShadowEventTarget.removeEventListener = this.ShadowFunction(`
+      return function (name, fn) {
+        var props = 'on-' + name
+        this.removeAttribute(props)
+        if (!this[props]) return
+        var index = this[props].indexOf(fn)
+        if (index !== -1) {
+          this[props].splice(index, 1)
+        }
+      }
+    `)()
+  }
+
+  private reject (template) {
     let reject = `
-      (function () {
-        var __$getEventTarget__ = function (object) {
-          if (!object) return
-          if ((object.__proto__ + '').indexOf('EventTarget') !== -1) {
-            return object.__proto__
-          } else {
-            return __$getEventTarget__(object.__proto__)
-          }
-        }
-        var __$EventTarget__ = __$getEventTarget__(window)
-        __$EventTarget__.addEventListener = function (name, fn, opt) {
-          let props = 'on-' + name
-          this.setAttribute(props, name)
-          if (this[props]) {
-            this[props].push(fn)
-          } else {
-            this[props] = [fn]
-          }
-        }
-        __$EventTarget__.removeEventListener = function (name, fn, opt) {
-          let props = 'on-' + name
-          this.removeAttribute(props)
-          if (!this[props]) return
-          let index = this[props].indexOf(fn)
-          if (index !== -1) {
-            this[props].splice(index, 1)
-          }
-        }
-      })();
-      window['$template'] = document.createElement('template');
+      shadowWindow['$template'] = document.createElement('template');
     `
-
-    return reject + 'window[\'$template\'].innerHTML = \'' + template + '\';'
+    return reject + 'shadowWindow[\'$template\'].innerHTML = \'' + template + '\';'
   }
 
-  uuid(node, uuid) {
-    uuid = parseInt(node.parentNode ? node.parentNode.uuid || 0 : 0)
+  private uuid (node: any, uuid?) {
+    uuid = parseInt(node.parentNode ? node.parentNode.uuid || 0 : 0, 10)
     uuid++
     this.o++
     uuid = uuid + '.' + this.o
@@ -112,14 +118,16 @@ class ShadowDocument {
     return uuid
   }
 
-  iterator(nodes) {
+  private iterator (nodes: any) {
     if (nodes.nextNode) return nodes
-    return DOCUMENT.createNodeIterator(nodes, NodeFilter.SHOW_ALL, null, false)
+    return DOCUMENT.createNodeIterator(nodes, NodeFilter.SHOW_ALL, null)
   }
 
-  walker(nodes, target, del) {
-    let node
-    while (node = nodes.nextNode()) {
+  private walker (nodes: any, target: any, del = false) {
+    let node = nodes.nextNode()
+    while (node) {
+      node = nodes.nextNode()
+      if (!node) break
       if (node.uuid) continue
       this.uuid(node)
       switch (node.nodeType) {
@@ -144,27 +152,27 @@ class ShadowDocument {
     }
   }
 
-  getParentId(node, target) {
+  private getParentId (node: any, target: any) {
     return (node.parentNode ? node.parentNode.uuid : target.uuid) || 0
   }
 
-  createElement(node, target) {
+  private createElement (node: any, target: any) {
     let name = node.nodeName
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
     switch (name) {
-      case !!this.allowTagName[name] ? name : null:
+      case this.allowTagName[name] ? name : null:
         this.TREE[uuid] = DOCUMENT.createElement(name)
         break
       default:
-        throw "The tag name provided ('" + name + "') is not a valid name."
+        throw new Error(`The tag name provided ('${name}') is not a valid name of whitelist.`)
     }
 
     this.TREE[puuid].appendChild(this.TREE[uuid])
   }
 
-  removeElement(node, target) {
+  private removeElement (node: any, target: any) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -174,7 +182,7 @@ class ShadowDocument {
     }
   }
 
-  createTextNode(node, target) {
+  private createTextNode (node: any, target: any) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
     let text = node.textContent
@@ -185,7 +193,7 @@ class ShadowDocument {
     }
   }
 
-  removeTextNode(node, target) {
+  private removeTextNode (node: any, target: any) {
     let uuid = node.uuid
     let puuid = this.getParentId(node, target)
 
@@ -195,12 +203,21 @@ class ShadowDocument {
     }
   }
 
-  setAttribute(name, node) {
+  private setAttribute (name: string, node: any) {
     let attri = this.TREE[node.uuid]
     let allow = this.allowTagName[node.tagName]
     let value = node.getAttribute(name)
+    let safeAttr = false
 
     switch (name) {
+      case 'id':
+      case 'name':
+      case 'style':
+      case 'class':
+      case 'width':
+      case 'height':
+        safeAttr = true
+        break
       case 'on-click':
       case 'on-touchstart':
       case 'on-touchmove':
@@ -226,31 +243,30 @@ class ShadowDocument {
               let even = event[i]
               typeof(even) === 'function' && even.call(node, e)
             }
-          `)({event: node[name], node, e: this.shadowEvent(e)})
+          `)({ event: node[name], node, e: this.shadowEvent(e), console })
         }, false)
         return
+      default:
+        if (typeof(allow) === 'function' && allow(name, value)) {
+          safeAttr = true
+        } else {
+          throw new Error(`The attribute name provided ('${name}') is not a valid name of whitelist.`)
+        }
+        break
     }
 
-    if (typeof(allow) === 'function') {
-      if (!allow(name, value)) {
-        return
-      }
-    }
-
-    if (attri) {
-      attri.setAttribute(name, value)
-    }
+    if (attri && safeAttr) attri.setAttribute(name, value)
   }
 
-  setCharacterData(node) {
+  private setCharacterData (node: any) {
     let char = this.TREE[node.uuid]
     if (char) char.textContent = node.textContent
   }
 
-  shadowEvent(e) {
+  private shadowEvent (e: object) {
     let event = {}
     for (let k in e) {
-      switch (typeof(e[k]) ) {
+      switch (typeof (e[k])) {
         case 'string':
         case 'number':
         case 'boolean':
@@ -261,22 +277,25 @@ class ShadowDocument {
     return event
   }
 
-  parallel(root) {
-    this.shadowFunction.run('observer()')({observer: () => {
+  private parallel (root: HTMLElement) {
+    this.shadowFunction.run('observer()')({ observer: () => {
       new MutationObserver((records) => {
         for (let record of records) {
           let target = record.target
           switch (record.type) {
-            case "attributes":
+            case 'attributes':
+              // @ts-ignore
               this.setAttribute(record.attributeName, target)
               break
-            case "characterData":
+            case 'characterData':
               this.setCharacterData(target)
               break
-            case "childList":
+            case 'childList':
+              // @ts-ignore
               for (let node of record.addedNodes) {
                 this.walker(this.iterator(node), target)
               }
+              // @ts-ignore
               for (let node of record.removedNodes) {
                 this.walker(this.iterator(node), target, true)
               }
@@ -291,7 +310,7 @@ class ShadowDocument {
         attributeOldValue: true,
         characterDataOldValue: true
       })
-    }})
+    } })
   }
 }
 

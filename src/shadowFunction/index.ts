@@ -1,4 +1,4 @@
-"use strict"
+'use strict'
 
 import { getObjectType } from '../objectType/index'
 import { Sandbox } from '../sandbox/index'
@@ -6,99 +6,108 @@ import { safeEval } from '../safeEval/index'
 
 // ShadowFunction
 class ShadowFunction {
-  constructor(scriptStr) {
-    this.sandbox = new Sandbox()
-    this.shadowToString = this.sandbox.window.Object.toString
-    this.ShadowFunction = this.sandbox.window.Function
-    this.init()
+  private sandbox = new Sandbox()
+  private shadowWindow = this.sandbox.shadowWindow
+  private shadowToString = (this.sandbox.shadowWindow as any).Object.toString
+  private ShadowFunction = (this.sandbox.shadowWindow as any).Function
+  private shadowFunction
+  private allowProtoProperties = {
+    Node: [
+      'nodeName',
+      'nodeType',
+      'textContent'
+    ],
+    Element: [
+      'style',
+      'onblur',
+      'onfocus',
+      'onscroll',
+      'offsetWidth',
+      'offsetHeight',
+      'clientWidth',
+      'clientHeight',
+      'innerText',
+      'setAttribute',
+      'removeAttribute',
+      'createTextNode',
+      'addEventListener',
+      'getElementsByTagName'
+    ],
+    HTMLElement: [],
+    HTMLBodyElement: [],
+    HTMLDivElement: [],
+    HTMLUListElement: [],
+    HTMLLIElement: [],
+    HTMLVideoElement: [],
+    HTMLAudioElement: [],
+    HTMLSelectElement: [],
+    HTMLOptionElement: [],
+    HTMLInputElement: [],
+    HTMLSpanElement: [],
+    HTMLDListElement: [],
+    HTMLFontElement: [],
+    HTMLHeadingElement: [],
+    HTMLParagraphElement: []
+  }
+  private log
+  private tracker = (e: { object: object, name: string, action: string, value?: any}) => {
+    if (typeof (e.name) !== 'symbol') {
+      if (typeof (this.log) === 'function') {
+        this.log(e)
+      } else {
+        console.log('Event Log:', e)
+      }
+    }
+  }
 
-    switch (typeof(scriptStr)) {
+  constructor (scriptStr: any) {
+    switch (typeof (scriptStr)) {
       case 'object':
+        // @ts-ignore
         return this.setAllowProtoProperties(scriptStr)
       case 'string':
+        // @ts-ignore
         return this.runShadow(scriptStr)
       default:
-        throw 'Uncaught SyntaxError: Unexpected identifier'
+        throw new Error('Uncaught SyntaxError: Unexpected identifier')
     }
   }
 
-  init() {
-    this.allowProtoProperties = {
-      Node: [
-        'nodeName',
-        'nodeType',
-        'textContent'
-      ],
-      Element: [
-        'style',
-        'onblur',
-        'onfocus',
-        'onscroll',
-        'offsetWidth',
-        'offsetHeight',
-        'clientWidth',
-        'clientHeight',
-        'innerText',
-        'setAttribute',
-        'removeAttribute',
-        'createTextNode',
-        'addEventListener',
-        'getElementsByTagName'
-      ],
-      HTMLElement: [],
-      HTMLBodyElement: [],
-      HTMLDivElement: [],
-      HTMLUListElement: [],
-      HTMLLIElement: [],
-      HTMLVideoElement: [],
-      HTMLAudioElement: [],
-      HTMLSelectElement: [],
-      HTMLOptionElement: [],
-      HTMLInputElement: [],
-      HTMLSpanElement: [],
-      HTMLDListElement: [],
-      HTMLFontElement: [],
-      HTMLHeadingElement: [],
-      HTMLParagraphElement: []
-    }
-    this.tracker = () => {}
+  private event (log: (param: object) => {}) {
+    this.log = log
   }
 
-  event(tracker) {
-    this.tracker = tracker
-  }
-
-  getAllowProtoProperties(constructorName) {
+  private getAllowProtoProperties (constructorName: string) {
     const properties = this.allowProtoProperties
     let allowProperties = properties[constructorName]
-    if (typeof(allowProperties) == 'function') return allowProperties()
+    if (typeof (allowProperties) === 'function') return allowProperties()
     if (/HTML(\w+)Element/.exec(constructorName)) {
-      allowProperties.concat(properties['HTMLElement'], properties['Element'], properties['Node'])
+      allowProperties = allowProperties.concat(properties['HTMLElement'], properties['Element'], properties['Node'])
     }
     return allowProperties
   }
 
-  setAllowProtoProperties(allowProperties) {
+  private setAllowProtoProperties (allowProperties: object) {
     Object.assign(this.allowProtoProperties, allowProperties)
     return this.runShadow.bind(this)
   }
 
-  proxy(object, origin) {
+  private proxy (object: object, origin: object) {
+    const safeSetter = this.safeSetter.bind(this)
+    const safeGetter = this.safeGetter.bind(this)
     let propNames = Object.getOwnPropertyNames(object)
-    let safeSetter = this.safeSetter.bind(this)
-    let safeGetter = this.safeGetter.bind(this)
-    let Proxy = safeEval('(Proxy)')
+    let Proxy = this.shadowWindow.Proxy
     return new Proxy(safeEval(`({${propNames.length ? propNames.join(':{},') + ':{}' : ''}})`), {
-      get (target, name) {
+      get (_target, name) {
         return safeGetter(object, name)
       },
-      set: (target, name, value) => {
+      set: (_target, name, value) => {
         return safeSetter(origin, name, value)
       }
     })
   }
 
-  checkIsSmuggled(object) {
+  private checkIsSmuggled (object: object) {
     let propNames = Object.getOwnPropertyNames(object)
     let isSmuggled = false
     for (let name of propNames) {
@@ -131,19 +140,19 @@ class ShadowFunction {
     return isSmuggled
   }
 
-  proxyObject(target, name, value) {
+  private proxyObject (target: object, name: string, value: any) {
     if (getObjectType(value) !== 'Object' && value.toString.constructor === this.shadowToString.constructor) {
       if (!this.checkIsSmuggled(value)) {
         target[name] = value
       } else {
-        throw 'Uncaught SyntaxError: Do not enclose custom functions in Element'
+        throw new Error('Uncaught SyntaxError: Do not enclose custom functions in Element')
       }
     } else {
       target[name] = this.proxyEach(value)
     }
   }
 
-  proxyEach(object) {
+  private proxyEach (object: object) {
     if (!object) return safeEval('(undefined)')
     let target = safeEval('({})')
     let prototype = getObjectType(object)
@@ -181,7 +190,7 @@ class ShadowFunction {
     return this.proxy(target, object)
   }
 
-  safeSetter (object, name, value) {
+  private safeSetter (object: object, name: string, value: any) {
     let valueType = typeof(value)
     let prototype = getObjectType(object)
     let propNames = Object.getOwnPropertyNames(object)
@@ -191,7 +200,7 @@ class ShadowFunction {
       propNames = propNames.concat(whitelist)
     }
 
-    if (propNames.indexOf(name) == -1) {
+    if (propNames.indexOf(name) === -1) {
       this.tracker({
         object,
         name,
@@ -223,7 +232,7 @@ class ShadowFunction {
     return
   }
 
-  safeGetter (object, name) {
+  private safeGetter (object: object, name: string) {
     let value = object[name]
     let valueType = typeof(value)
     let prototype = getObjectType(object)
@@ -234,7 +243,7 @@ class ShadowFunction {
       propNames = propNames.concat(whitelist)
     }
 
-    if (propNames.indexOf(name) == -1) {
+    if (propNames.indexOf(name) === -1) {
       this.tracker({
         object,
         name,
@@ -256,7 +265,7 @@ class ShadowFunction {
     }
   }
 
-  safeReturnFunction(value, object) {
+  private safeReturnFunction (value: () => {}, object: object) {
     return new this.ShadowFunction('value', 'object', 'safeReturnFunction', 'proxy', `
       return (function () {
         return function () {
@@ -266,15 +275,17 @@ class ShadowFunction {
     `)(value, object, this.safeReturnFunction, this.proxyEach.bind(this))
   }
 
-  runShadow(scriptStr) {
+  public runShadow (scriptStr: string) {
     this.shadowFunction = new this.ShadowFunction('(function(){with(arguments[0]) {' + scriptStr + '}})(this)')
     return this.runScript.bind(this)
   }
 
-  runScript(that, event) {
+  public runScript (that: object, event: (event: object) => {}) {
     let target = this.proxyEach(that)
+    let shadowFunction = this.shadowFunction as any
     event && this.event(event)
-    this.shadowFunction.apply(target)
+    shadowFunction.apply(Object.assign(this.shadowWindow, target))
+
     return {
       run: this.runShadow.bind(this),
       proxy: this.proxyEach.bind(this),
