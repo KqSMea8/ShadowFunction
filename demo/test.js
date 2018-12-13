@@ -42,6 +42,7 @@ window.Strongbox = Strongbox
 // 攻防测试
 new ShadowFunction(`
     console.log(k, 'ISV 代码测试写在这')
+    // // // console.log(shadowWindow, '循环引用对象，会导致报错')
     console.log('test:', j.toString, shadowWindow.constructor.valueOf.constructor('alert(9)')())
 
     // ISV 代码测试写在这

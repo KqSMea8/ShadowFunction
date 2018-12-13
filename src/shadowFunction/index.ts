@@ -7,9 +7,9 @@ import { safeEval } from '../safeEval/index'
 // ShadowFunction
 class ShadowFunction {
   private sandbox = new Sandbox()
-  private shadowWindow = this.sandbox.shadowWindow
-  private shadowToString = (this.sandbox.shadowWindow as any).Object.toString
-  private ShadowFunction = (this.sandbox.shadowWindow as any).Function
+  private shadowWindow = this.sandbox.shadowWindow as any
+  private shadowToString = this.shadowWindow.Object.toString
+  private ShadowFunction = this.shadowWindow.Function
   private shadowFunction
   private allowProtoProperties = {
     Node: [
@@ -97,7 +97,7 @@ class ShadowFunction {
     const safeGetter = this.safeGetter.bind(this)
     let propNames = Object.getOwnPropertyNames(object)
     let Proxy = this.shadowWindow.Proxy
-    return new Proxy(safeEval(`({${propNames.length ? propNames.join(':{},') + ':{}' : ''}})`), {
+    return new Proxy(safeEval(`({${propNames.length ? '"' + propNames.join('":{},"') + '":{}' : ''}})`), {
       get (_target, name) {
         return safeGetter(object, name)
       },
@@ -107,9 +107,16 @@ class ShadowFunction {
     })
   }
 
-  private checkIsSmuggled (object: object) {
+  private checkCircularRefDeep (deep: number) {
+    if (deep > 21) throw new Error('circular reference caused by alias in arguments')
+    deep++
+    return deep
+  }
+
+  private checkIsSmuggled (object: object, deep = 1) {
     let propNames = Object.getOwnPropertyNames(object)
     let isSmuggled = false
+
     for (let name of propNames) {
       let value = object[name]
       let valueType = typeof(value)
@@ -117,7 +124,8 @@ class ShadowFunction {
       if (value) {
         switch (valueType) {
           case 'object':
-            if (this.checkIsSmuggled(value)) {
+            deep = this.checkCircularRefDeep(deep)
+            if (this.checkIsSmuggled(value, deep)) {
               isSmuggled = true
             }
             break
@@ -135,26 +143,29 @@ class ShadowFunction {
             break
         }
       }
+
+      if (isSmuggled) return true
     }
 
     return isSmuggled
   }
 
-  private proxyObject (target: object, name: string, value: any) {
+  private proxyObject (target: object, name: string, value: any, deep: number) {
     if (getObjectType(value) !== 'Object' && value.toString.constructor === this.shadowToString.constructor) {
-      if (!this.checkIsSmuggled(value)) {
+      if (!this.checkIsSmuggled(value, deep)) {
         target[name] = value
       } else {
-        throw new Error('Uncaught SyntaxError: Do not enclose custom functions in Element')
+        throw new Error('Do not enclose custom functions in Element')
       }
     } else {
-      target[name] = this.proxyEach(value)
+      deep = this.checkCircularRefDeep(deep)
+      target[name] = this.proxyEach(value, deep)
     }
   }
 
-  private proxyEach (object: object) {
-    if (!object) return safeEval('(undefined)')
-    let target = safeEval('({})')
+  private proxyEach (object: object, deep = 1) {
+    if (!object) return null
+    let target = new this.shadowWindow.Object
     let prototype = getObjectType(object)
     let propNames = Object.getOwnPropertyNames(object)
     let whitelist = this.getAllowProtoProperties(prototype)
@@ -170,7 +181,7 @@ class ShadowFunction {
       if (value) {
         switch (valueType) {
           case 'object':
-            this.proxyObject(target, name, value)
+            this.proxyObject(target, name, value, deep)
             break
           case 'function':
             target[name] = value.bind(object)

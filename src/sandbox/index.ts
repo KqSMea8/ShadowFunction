@@ -31,6 +31,7 @@ class Sandbox {
     }
 
     this.shadowWindow.shadowWindow = this.shadowWindow
+    this.shadowWindow.window = this.shadowWindow
     if (!white) this.exit()
 
     return this

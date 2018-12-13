@@ -66,8 +66,8 @@ module.exports = {
     hot: true
   },
   watchOptions: {
-    poll: 1000,
-    aggregateTimeout: 500,
+    poll: 500,
+    aggregateTimeout: 100,
     ignored: '/node_moduels/'
   }
 }

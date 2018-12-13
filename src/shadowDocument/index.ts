@@ -219,7 +219,7 @@ class ShadowDocument {
   private setAttribute (name: string, node: any) {
     let attri = this.TREE[node.uuid]
     let allow = this.allowTagName[node.tagName]
-    let value = node.getAttribute(name)
+    let value = this.shadowWindow.Element.prototype.getAttribute.call(node, name)
     let safeAttr = false
 
     switch (name) {
